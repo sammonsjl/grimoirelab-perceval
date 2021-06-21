@@ -65,6 +65,7 @@ are:
     jenkins          Fetch builds from a Jenkins server
     jira             Fetch issues from JIRA issue tracker
     launchpad        Fetch issues from Launchpad issue tracker
+    liferay          Fetch questions and blogs from a Liferay site
     mattermost       Fetch posts from a Mattermost server
     mbox             Fetch messages from MBox files
     mediawiki        Fetch pages and revisions from a MediaWiki site
