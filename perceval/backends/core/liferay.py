@@ -21,6 +21,8 @@
 import json
 import logging
 from grimoirelab_toolkit.uris import urijoin
+import urllib3
+from urllib3.exceptions import InsecureRequestWarning
 
 from perceval.client import HttpClient
 
@@ -146,6 +148,13 @@ class LiferayClient(HttpClient):
         self.site_id = site_id
         self.max_items = max_items
         self.graphql_url = urijoin(url, 'o', 'graphql')
+        self.user = "jamie.sammons@liferay.com"
+        self.password = "liferay"
+        self.cert = None
+        self.verify = True
+
+        if not from_archive:
+            self.__init_session()
 
     def fetch_items(self, query_template, from_date=None):
         """Retrieve all the items from a given Liferay Site.
@@ -169,13 +178,13 @@ class LiferayClient(HttpClient):
             yield items['data']['entries']['items']
             page += 1
 
-            query = query_template % (from_date.isoformat(), page, self.max_items, self.site_id)
+            query = query_template % (from_date, page, self.max_items, self.site_id)
             response = self.fetch(self.graphql_url, payload=json.dumps({'query': query}), method=HttpClient.POST)
             items = response.json()
 
             nquestions += items['data']['entries']['pageSize']
 
-            if page == items['data']['entries']['lastPage']:
+            if page >= items['data']['entries']['lastPage']:
                 has_next = False
 
             self.__log_status(page, tquestions, self.url)
@@ -187,6 +196,17 @@ class LiferayClient(HttpClient):
 
         return self.fetch_items(POSTS_QUERY_TEMPLATE, TEST_FROM_DATE)
 
+    def __init_session(self):
+        if (self.user and self.password) is not None:
+            self.session.auth = (self.user, self.password)
+
+        if self.cert:
+            self.session.cert = self.cert
+
+        if self.verify is not True:
+            urllib3.disable_warnings(InsecureRequestWarning)
+            self.session.verify = False
+
     @staticmethod
     def __log_status(max_items, total, url):
         if total != 0:
@@ -194,14 +214,3 @@ class LiferayClient(HttpClient):
             logger.info("Fetching %s/%s items from %s" % (nitems, total, url))
         else:
             logger.info("No items were found for %s" % url)
-
-
-def main():
-    client = LiferayClient("http://localhost:8080", 14)
-    posts = client.posts()
-
-    for post in posts:
-        print(post['headline'])
-
-
-main()
