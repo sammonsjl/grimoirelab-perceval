@@ -20,8 +20,10 @@
 #
 import json
 import logging
-from grimoirelab_toolkit.uris import urijoin
 import urllib3
+
+from grimoirelab_toolkit.uris import urijoin
+from grimoirelab_toolkit.datetime import datetime_to_utc
 from urllib3.exceptions import InsecureRequestWarning
 
 from perceval.client import HttpClient
@@ -33,7 +35,6 @@ from ...utils import DEFAULT_DATETIME
 
 CATEGORY_QUESTION = "question"
 MAX_ITEMS = 100
-TEST_FROM_DATE = "2021-06-01T13:02:10Z"
 
 POSTS_QUERY_TEMPLATE = """
     {
@@ -187,7 +188,13 @@ class Liferay(Backend):
         :returns: a generator of issues
         """
 
-        items = super().fetch(category)
+        if not from_date:
+            from_date = DEFAULT_DATETIME
+
+        from_date = datetime_to_utc(from_date)
+
+        kwargs = {'from_date': from_date}
+        items = super().fetch(category, **kwargs)
 
         return items
 
@@ -202,14 +209,12 @@ class Liferay(Backend):
         from_date = kwargs['from_date']
 
         logger.info("Looking for questions at site '%s', with tag '%s' and updated from '%s'",
-                    str(from_date))
+                    self.url, self.tag, str(from_date))
 
-        whole_pages = self.client.get_questions(from_date)
+        questions = self.client.get_questions(from_date)
 
-        for whole_page in whole_pages:
-            questions = self.parse_questions(whole_page)
-            for question in questions:
-                yield question
+        for question in questions:
+            yield question
 
     @classmethod
     def has_archiving(cls):
@@ -231,7 +236,7 @@ class Liferay(Backend):
     def metadata_id(item):
         """Extracts the identifier from a Liferay item."""
 
-        return str(item['uuid'])
+        return str(item['id'])
 
     @staticmethod
     def metadata_updated_on(item):
@@ -314,7 +319,7 @@ class LiferayClient(HttpClient):
         """
         page = 1
 
-        query = query_template % (from_date, page, self.max_items, self.site_id)
+        query = query_template % (from_date.isoformat(), page, self.max_items, self.site_id)
         response = self.fetch(self.graphql_url, payload=json.dumps({'query': query}), method=HttpClient.POST)
         items = response.json()
 
@@ -325,10 +330,10 @@ class LiferayClient(HttpClient):
 
         has_next = True
         while has_next:
-            yield items['data']['entries']['items']
+            yield items['data']['entries']
             page += 1
 
-            query = query_template % (from_date, page, self.max_items, self.site_id)
+            query = query_template % (from_date.isoformat(), page, self.max_items, self.site_id)
             response = self.fetch(self.graphql_url, payload=json.dumps({'query': query}), method=HttpClient.POST)
             items = response.json()
 
@@ -339,12 +344,12 @@ class LiferayClient(HttpClient):
 
             self.__log_status(page, tquestions, self.url)
 
-    def posts(self):
+    def get_questions(self, from_date=None):
         """
         Retrieve all message board messages from Liferay Site
         """
 
-        return self.fetch_items(POSTS_QUERY_TEMPLATE, TEST_FROM_DATE)
+        return self.fetch_items(POSTS_QUERY_TEMPLATE, from_date)
 
     def __init_session(self):
         if (self.user and self.password) is not None:
@@ -377,6 +382,7 @@ class LiferayCommand(BackendCommand):
 
         parser = BackendCommandArgumentParser(cls.BACKEND,
                                               basic_auth=True,
+                                              from_date=True,
                                               archive=True)
 
         # Liferay options
