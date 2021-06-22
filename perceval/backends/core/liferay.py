@@ -40,13 +40,13 @@ MAX_ITEMS = 100
 POSTS_QUERY_TEMPLATE = """
     {
       entries: messageBoardThreads(
-            filter: "dateCreated gt %s", 
-            flatten: true, 
-            page: %s, 
-            pageSize: %s, 
-            siteKey: "%s", 
+            filter: "dateCreated gt %s",
+            flatten: true,
+            page: %s,
+            pageSize: %s,
+            siteKey: "%s",
             sort: "dateCreated:desc"
-        ) 
+        )
         {
         items {
           aggregateRating {
