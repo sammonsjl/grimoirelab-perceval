@@ -23,7 +23,8 @@ import logging
 import urllib3
 
 from grimoirelab_toolkit.uris import urijoin
-from grimoirelab_toolkit.datetime import datetime_to_utc
+from grimoirelab_toolkit.datetime import (datetime_to_utc,
+                                          str_to_datetime)
 from urllib3.exceptions import InsecureRequestWarning
 
 from perceval.client import HttpClient
@@ -211,10 +212,12 @@ class Liferay(Backend):
         logger.info("Looking for questions at site '%s', with tag '%s' and updated from '%s'",
                     self.url, self.tag, str(from_date))
 
-        questions = self.client.get_questions(from_date)
+        whole_pages = self.client.get_questions(from_date)
 
-        for question in questions:
-            yield question
+        for whole_page in whole_pages:
+            questions = self.parse_questions(whole_page)
+            for question in questions:
+                yield question
 
     @classmethod
     def has_archiving(cls):
@@ -250,7 +253,10 @@ class Liferay(Backend):
 
         :returns: a UNIX timestamp
         """
-        return float(item['modifiedDate'] / 1000)
+        ts = item['dateModified']
+        ts = str_to_datetime(ts)
+
+        return ts.timestamp()
 
     @staticmethod
     def metadata_category(item):
@@ -274,7 +280,7 @@ class Liferay(Backend):
         :returns: a generator of questions
         """
         raw_questions = json.loads(raw_page)
-        questions = raw_questions['items']
+        questions = raw_questions['data']['entries']['items']
         for question in questions:
             yield question
 
@@ -321,25 +327,26 @@ class LiferayClient(HttpClient):
 
         query = query_template % (from_date.isoformat(), page, self.max_items, self.site_id)
         response = self.fetch(self.graphql_url, payload=json.dumps({'query': query}), method=HttpClient.POST)
-        items = response.json()
+        items = response.text
+        data = response.json()
 
-        tquestions = items['data']['entries']['totalCount']
-        nquestions = items['data']['entries']['pageSize']
+        tquestions = data['data']['entries']['totalCount']
+        nquestions = data['data']['entries']['pageSize']
 
         self.__log_status(page, tquestions, self.url)
 
         has_next = True
         while has_next:
-            yield items['data']['entries']
+            yield items
             page += 1
 
             query = query_template % (from_date.isoformat(), page, self.max_items, self.site_id)
             response = self.fetch(self.graphql_url, payload=json.dumps({'query': query}), method=HttpClient.POST)
             items = response.json()
 
-            nquestions += items['data']['entries']['pageSize']
+            nquestions += data['data']['entries']['pageSize']
 
-            if page >= items['data']['entries']['lastPage']:
+            if page >= data['data']['entries']['lastPage']:
                 has_next = False
 
             self.__log_status(page, tquestions, self.url)
