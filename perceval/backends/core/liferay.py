@@ -58,6 +58,7 @@ POSTS_QUERY_TEMPLATE = """
           creator {
             userAccount: graphQLNode {
               ... on UserAccount {
+                alternateName
                 emailAddress
               }
             }
@@ -95,6 +96,7 @@ POSTS_QUERY_TEMPLATE = """
                   creator {
                     userAccount: graphQLNode {
                       ... on UserAccount {
+                        alternateName
                         emailAddress
                       }
                     }
@@ -110,6 +112,7 @@ POSTS_QUERY_TEMPLATE = """
               creator {
                 userAccount: graphQLNode {
                   ... on UserAccount {
+                    alternateName
                     emailAddress
                   }
                 }
