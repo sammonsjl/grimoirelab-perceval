@@ -65,6 +65,7 @@ POSTS_QUERY_TEMPLATE = """
             image
             id
             name
+            profileURL
           }
           creatorStatistics {
             joinDate
@@ -103,9 +104,11 @@ POSTS_QUERY_TEMPLATE = """
                     image
                     id
                     name
+                    profileURL
                   }
                   dateCreated
                   friendlyUrlPath
+                  headline
                   id
                 }
               }
@@ -119,7 +122,10 @@ POSTS_QUERY_TEMPLATE = """
                 image
                 id
                 name
+                profileURL
               }
+              dateCreated
+              headline
               numberOfMessageBoardMessages
               id
               showAsAnswer
