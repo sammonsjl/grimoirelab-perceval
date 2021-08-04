@@ -242,7 +242,7 @@ class Liferay(Backend):
 
         :returns: this backend supports items resuming
         """
-        return False
+        return True
 
     @staticmethod
     def metadata_id(item):
