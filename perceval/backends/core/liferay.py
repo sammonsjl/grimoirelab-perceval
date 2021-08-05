@@ -49,23 +49,16 @@ POSTS_QUERY_TEMPLATE = """
         )
         {
         items {
-          aggregateRating {
-            ratingAverage
-            ratingCount
-            ratingValue
-          }
           articleBody
           creator {
             userAccount: graphQLNode {
               ... on UserAccount {
                 alternateName
                 emailAddress
+                id
+                name
               }
             }
-            image
-            id
-            name
-            profileURL
           }
           creatorStatistics {
             joinDate
@@ -75,6 +68,9 @@ POSTS_QUERY_TEMPLATE = """
           dateCreated
           dateModified
           friendlyUrlPath
+          messageBoardSection {
+            title
+          }
           headline
           id
           hasValidAnswer
@@ -86,11 +82,6 @@ POSTS_QUERY_TEMPLATE = """
           viewCount
           answers: messageBoardMessages {
             items {
-              aggregateRating {
-                ratingAverage
-                ratingCount
-                ratingValue
-              }
               articleBody
               comments: messageBoardMessages(flatten: true) {
                 items {
@@ -99,12 +90,10 @@ POSTS_QUERY_TEMPLATE = """
                       ... on UserAccount {
                         alternateName
                         emailAddress
+                        id
+                        name
                       }
                     }
-                    image
-                    id
-                    name
-                    profileURL
                   }
                   dateCreated
                   friendlyUrlPath
@@ -117,12 +106,10 @@ POSTS_QUERY_TEMPLATE = """
                   ... on UserAccount {
                     alternateName
                     emailAddress
+                    id
+                    name
                   }
                 }
-                image
-                id
-                name
-                profileURL
               }
               dateCreated
               headline
