@@ -79,6 +79,7 @@ POSTS_QUERY_TEMPLATE = """
             taxonomyCategoryName
           }
           id
+          status
           viewCount
           answers: messageBoardMessages {
             items {
@@ -115,6 +116,7 @@ POSTS_QUERY_TEMPLATE = """
               headline
               numberOfMessageBoardMessages
               id
+              status
               showAsAnswer
             }
           }
