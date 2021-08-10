@@ -35,7 +35,7 @@ from ...backend import (Backend,
 from ...utils import DEFAULT_DATETIME
 
 CATEGORY_QUESTION = "question"
-MAX_ITEMS = 5
+MAX_ITEMS = 20
 
 POSTS_QUERY_TEMPLATE = """
     {
