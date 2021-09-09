@@ -268,7 +268,7 @@ class Liferay(Backend):
 
     @staticmethod
     def parse_questions(raw_page):
-        """Parse a StackExchange API raw response.
+        """Parse a Liferay API raw response.
 
         The method parses the API response retrieving the
         questions from the received items

@@ -57,6 +57,7 @@ are:
     gerrit           Fetch reviews from a Gerrit server
     git              Fetch commits from Git
     github           Fetch issues, pull requests and repository information from GitHub
+    githubrelease    Fetch release information from GitHub
     gitlab           Fetch issues, merge requests from GitLab
     gitter           Fetch messages from a Gitter room
     googlehits       Fetch hits from Google API
