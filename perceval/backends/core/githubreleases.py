@@ -44,7 +44,7 @@ GITHUB_API_URL = "https://api.github.com"
 logger = logging.getLogger(__name__)
 
 
-class GitHubRelease(GitHub):
+class GitHubReleases(GitHub):
     """GitHub backend for Perceval.
 
     This class allows the fetch the issues stored in GitHub
@@ -186,14 +186,14 @@ class GitHubRelease(GitHub):
     def _init_client(self, from_archive=False):
         """Init client"""
 
-        return GitHubReleaseClient(self.owner, self.repository, self.api_token,
+        return GitHubReleasesClient(self.owner, self.repository, self.api_token,
                                    self.github_app_id, self.github_app_pk_filepath, self.base_url,
                                    self.sleep_for_rate, self.min_rate_to_sleep,
                                    self.sleep_time, self.max_retries, self.max_items,
                                    self.archive, from_archive, self.ssl_verify)
 
 
-class GitHubReleaseClient(GitHubClient):
+class GitHubReleasesClient(GitHubClient):
     """Client for retrieving information from GitHub API
 
     :param owner: GitHub owner
@@ -251,7 +251,7 @@ class GitHubReleaseClient(GitHubClient):
         return self.fetch_items(path, payload)
 
 
-class GitHubReleaseCommand(GitHubCommand):
+class GitHubReleasesCommand(GitHubCommand):
     """Class to run GitHubQL backend from the command line."""
 
-    BACKEND = GitHubRelease
+    BACKEND = GitHubReleases
