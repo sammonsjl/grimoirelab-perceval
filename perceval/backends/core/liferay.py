@@ -146,8 +146,6 @@ class Liferay(Backend):
 
     :param url: URL of the Liferay server
     :param group_id: Liferay Site to fetch data from
-    :param user: Liferay's username
-    :param password: Liferay's password
     :param verify: allows to disable SSL verification
     :param cert: SSL certificate
     :param max_results: max number of results per query
@@ -159,8 +157,7 @@ class Liferay(Backend):
     CATEGORIES = [CATEGORY_QUESTION]
 
     def __init__(self, url, group_id,
-                 user=None, password=None,
-                 verify=True, cert=None,
+                 api_token, verify=True, cert=None,
                  max_results=MAX_ITEMS, tag=None,
                  archive=None):
         origin = url
@@ -168,8 +165,7 @@ class Liferay(Backend):
         super().__init__(origin, tag=tag, archive=archive)
         self.url = url
         self.group_id = group_id
-        self.user = user
-        self.password = password
+        self.api_token = api_token
         self.verify = verify
         self.cert = cert
         self.max_results = max_results
@@ -285,7 +281,7 @@ class Liferay(Backend):
     def _init_client(self, from_archive=False):
         """Init client"""
 
-        return LiferayClient(self.url, self.group_id, self.user, self.password,
+        return LiferayClient(self.url, self.group_id, self.api_token,
                              self.verify, self.cert, self.max_results,
                              self.archive, from_archive)
 
@@ -297,7 +293,9 @@ class LiferayClient(HttpClient):
     any Liferay system.
     """
 
-    def __init__(self, url, site_id, user=None, password=None,
+    AUTHORIZATION_HEADER = 'Authorization'
+
+    def __init__(self, url, site_id, api_token,
                  verify=None, cert=None,
                  max_items=MAX_ITEMS,
                  archive=None, from_archive=False):
@@ -305,15 +303,11 @@ class LiferayClient(HttpClient):
 
         self.url = url
         self.site_id = site_id
+        self.api_token = api_token
         self.max_items = max_items
         self.graphql_url = urijoin(url, 'o', 'graphql')
-        self.user = user
-        self.password = password
         self.cert = cert
         self.verify = verify
-
-        if not from_archive:
-            self.__init_session()
 
     def fetch_items(self, query_template, from_date=None):
         """Retrieve all the items from a given Liferay Site.
@@ -321,10 +315,16 @@ class LiferayClient(HttpClient):
         :param query_template: GraphQL query to use to retrieve data.
         :param from_date: obtain posts updated since this date
         """
+
+        headers = {
+            self.AUTHORIZATION_HEADER: 'Bearer {}'.format(self.api_token)
+        }
+
         page = 1
 
         query = query_template % (from_date.isoformat(), page, self.max_items, self.site_id)
-        response = self.fetch(self.graphql_url, payload=json.dumps({'query': query}), method=HttpClient.POST)
+        response = self.fetch(self.graphql_url, payload=json.dumps({'query': query}), method=HttpClient.POST,
+                              headers=headers)
         items = response.text
         data = response.json()
 
@@ -357,17 +357,6 @@ class LiferayClient(HttpClient):
 
         return self.fetch_items(POSTS_QUERY_TEMPLATE, from_date)
 
-    def __init_session(self):
-        if (self.user and self.password) is not None:
-            self.session.auth = (self.user, self.password)
-
-        if self.cert:
-            self.session.cert = self.cert
-
-        if self.verify is not True:
-            urllib3.disable_warnings(InsecureRequestWarning)
-            self.session.verify = False
-
     @staticmethod
     def __log_status(max_items, total, url):
         if total != 0:
@@ -387,7 +376,7 @@ class LiferayCommand(BackendCommand):
         """Returns the Liferay argument parser."""
 
         parser = BackendCommandArgumentParser(cls.BACKEND,
-                                              basic_auth=True,
+                                              token_auth=True,
                                               from_date=True,
                                               archive=True)
 
