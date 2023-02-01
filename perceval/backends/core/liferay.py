@@ -339,7 +339,8 @@ class LiferayClient(HttpClient):
             page += 1
 
             query = query_template % (from_date.isoformat(), page, self.max_items, self.site_id)
-            response = self.fetch(self.graphql_url, payload=json.dumps({'query': query}), method=HttpClient.POST)
+            response = self.fetch(self.graphql_url, payload=json.dumps({'query': query}), method=HttpClient.POST,
+                                  headers=headers)
             items = response.text
             data = response.json()
 
