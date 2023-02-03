@@ -20,6 +20,7 @@
 #
 import json
 import logging
+import requests
 import urllib3
 
 from grimoirelab_toolkit.uris import urijoin
@@ -157,9 +158,9 @@ class Liferay(Backend):
     CATEGORIES = [CATEGORY_QUESTION]
 
     def __init__(self, url, group_id,
-                 api_token, verify=True, cert=None,
+                 api_token=None, verify=True, cert=None,
                  max_results=MAX_ITEMS, tag=None,
-                 archive=None):
+                 client_id=None, secret_id=None, refresh_token=None, archive=None):
         origin = url
 
         super().__init__(origin, tag=tag, archive=archive)
@@ -170,6 +171,9 @@ class Liferay(Backend):
         self.cert = cert
         self.max_results = max_results
         self.client = None
+        self.client_id = client_id
+        self.secret_id = secret_id
+        self.refresh_token = refresh_token
 
     def fetch(self, category=CATEGORY_QUESTION, from_date=DEFAULT_DATETIME, filter_classified=False):
         """Fetch the entries from the site.
@@ -281,9 +285,9 @@ class Liferay(Backend):
     def _init_client(self, from_archive=False):
         """Init client"""
 
-        return LiferayClient(self.url, self.group_id, self.api_token,
+        return LiferayClient(self.url, self.group_id,
                              self.verify, self.cert, self.max_results,
-                             self.archive, from_archive)
+                             self.archive, from_archive, self.client_id, self.secret_id, self.refresh_token)
 
 
 class LiferayClient(HttpClient):
@@ -293,21 +297,42 @@ class LiferayClient(HttpClient):
     any Liferay system.
     """
 
-    AUTHORIZATION_HEADER = 'Authorization'
-
-    def __init__(self, url, site_id, api_token,
+    def __init__(self, url, site_id,
                  verify=None, cert=None,
                  max_items=MAX_ITEMS,
-                 archive=None, from_archive=False):
+                 archive=None, from_archive=False, client_id=None, secret_id=None, refresh_token=None):
         super().__init__(url, archive=archive, from_archive=from_archive)
 
         self.url = url
         self.site_id = site_id
-        self.api_token = api_token
+        self.client_id = client_id
+        self.secret_id = secret_id
+        self.refresh_token = refresh_token
+        self.current_token = None
         self.max_items = max_items
         self.graphql_url = urijoin(url, 'o', 'graphql')
+        self.token_url = urijoin(url, 'o', 'oauth2', 'token')
         self.cert = cert
         self.verify = verify
+
+        # Extract Access token
+        if not self.from_archive:
+            self._extract_access_token(self.client_id, self.secret_id, self.refresh_token)
+
+    def _extract_access_token(self, client_id, secret_id, refresh_token):
+        """Extract Access token from Liferay Client ID, Secret ID and Refresh Token"""
+
+        data = {
+            'client_id': client_id,
+            'client_secret': secret_id,
+            'grant_type': 'refresh_token',
+            'refresh_token': refresh_token,
+            'redirect_uri': self.url
+        }
+        response = requests.post(self.token_url, data=data)
+
+        self.access_token = json.loads(response.text)['access_token']
+        self.session.headers.update({'Authorization': 'Bearer ' + self.access_token})
 
     def fetch_items(self, query_template, from_date=None):
         """Retrieve all the items from a given Liferay Site.
@@ -316,15 +341,10 @@ class LiferayClient(HttpClient):
         :param from_date: obtain posts updated since this date
         """
 
-        headers = {
-            self.AUTHORIZATION_HEADER: 'Bearer {}'.format(self.api_token)
-        }
-
         page = 1
 
         query = query_template % (from_date.isoformat(), page, self.max_items, self.site_id)
-        response = self.fetch(self.graphql_url, payload=json.dumps({'query': query}), method=HttpClient.POST,
-                              headers=headers)
+        response = self.fetch(self.graphql_url, payload=json.dumps({'query': query}), method=HttpClient.POST)
         items = response.text
         data = response.json()
 
@@ -339,8 +359,7 @@ class LiferayClient(HttpClient):
             page += 1
 
             query = query_template % (from_date.isoformat(), page, self.max_items, self.site_id)
-            response = self.fetch(self.graphql_url, payload=json.dumps({'query': query}), method=HttpClient.POST,
-                                  headers=headers)
+            response = self.fetch(self.graphql_url, payload=json.dumps({'query': query}), method=HttpClient.POST)
             items = response.text
             data = response.json()
 
@@ -377,7 +396,7 @@ class LiferayCommand(BackendCommand):
         """Returns the Liferay argument parser."""
 
         parser = BackendCommandArgumentParser(cls.BACKEND,
-                                              token_auth=True,
+                                              token_auth=False,
                                               from_date=True,
                                               archive=True)
 
@@ -392,6 +411,17 @@ class LiferayCommand(BackendCommand):
         group.add_argument('--max-results', dest='max_results',
                            type=int, default=MAX_ITEMS,
                            help="Maximum number of results requested in the same query")
+
+        # Liferay token(s)
+        group.add_argument('--client-id', dest='client_id',
+                           default=None,
+                           help="Liferay key")
+        group.add_argument('--secret-id', dest='secret_id',
+                           default=None,
+                           help="Liferay secret token")
+        group.add_argument('--refresh-token', dest='refresh_token',
+                           default=None,
+                           help="Liferay refresh token")
 
         # Required arguments
         parser.parser.add_argument('url',
