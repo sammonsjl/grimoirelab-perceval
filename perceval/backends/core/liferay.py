@@ -353,22 +353,21 @@ class LiferayClient(HttpClient):
 
         self.__log_status(nquestions, tquestions, self.url)
 
-        has_next = True
-        while has_next:
+        while items:
             yield items
-            page += 1
+            items = None
 
-            query = query_template % (from_date.isoformat(), page, self.max_items, self.site_id)
-            response = self.fetch(self.graphql_url, payload=json.dumps({'query': query}), method=HttpClient.POST)
-            items = response.text
-            data = response.json()
+            if page != data['data']['entries']['lastPage']:
+                page += 1
 
-            nquestions += data['data']['entries']['pageSize']
+                query = query_template % (from_date.isoformat(), page, self.max_items, self.site_id)
+                response = self.fetch(self.graphql_url, payload=json.dumps({'query': query}), method=HttpClient.POST)
+                items = response.text
+                data = response.json()
 
-            if page >= data['data']['entries']['lastPage']:
-                has_next = False
+                nquestions += data['data']['entries']['pageSize']
 
-            self.__log_status(nquestions, tquestions, self.url)
+                self.__log_status(nquestions, tquestions, self.url)
 
     def get_questions(self, from_date=None):
         """
